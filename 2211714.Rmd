@@ -1,0 +1,180 @@
+---
+title: "MA331-Report: 2211714"
+author: "Taj, Maryam"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+subtitle: "TED Talks by Speaker Gabriel Barcia-Colombo and Neil Gershenfeld"
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE) #this is to prevent printing the code or any unnecessary addition in your final "html" report file.
+library(dsEssex)
+library(tidyverse)
+library(tidyr)
+library(textdata)
+library(tidytext)
+options(warn=-1)
+
+
+```
+
+
+#### Introduction
+In this article, we will do text analysis on the speakers of two TED Talks: Gabriel Barcia-Colombo**"Capturing  Memories in Video Art"** and Neil Gershenfeld's **"The Future of Fab Labs."** The purpose of this report is to conduct a text analysis of the speeches given by two TED speakers, with the goal of identifying patterns, themes, and insights from the data.Basic text analysis tasks including tokenization, stopword removal, and word frequency analysis will be carried out using the tidytext package. The report will present the findings of the text analysis, including visualizations and statistics, and draw conclusions based on the insights gained from the data.
+
+```{r intro, echo= FALSE,cache=FALSE}
+#uploading the ted talks data from dsEssex
+data("ted_talks")
+mydata <- ted_talks %>% #exract the data for two speakers allocated using filter function
+  filter(speaker %in% c("Gabriel Barcia-Colombo", "Neil Gershenfeld"))
+head(mydata)
+
+```
+
+#### Methods
+
+To Analyze the text data, the first step is to do **tokenization**, and then **stopword removal**, and **word frequency analysis** through its visualization. Through the help of these methods, we will be able to analyze our data in a proper format. We can see the glimplse of the data after tidying it e.g. tokenization and removal of the stop words. By removing the stop words, we can easily see the useful words in our data.
+
+#### Tokenization and Stopword Removal
+
+
+```{r setup1, echo=FALSE, cache=FALSE}
+options(dplyr.summarise.inform = FALSE)
+
+#Tidying and Tokenisation of data to arrange it in the specific structure and break apart text into 
+#meaningful unit text for analysis
+tidy_talks <- mydata %>%
+  tidytext::unnest_tokens(word, text)
+#Removing the stopwords
+ted_talks_nonstop <- tidy_talks %>%
+  dplyr::anti_join(get_stopwords())
+glimpse(ted_talks_nonstop)
+```
+
+
+### Words Frequency Analysis
+
+#### Identification of top words for Gabriel Barcia-Colombo
+
+After the removal of stop words, we are sorting the words with the most frequent terms at the top. Counting of the ted talks from both of the speakers and their visualization are below:
+
+```{r topwords, echo=FALSE}
+Gabriel_Barcia_topwords <- ted_talks_nonstop %>%
+#including the rows which is related to the speaker
+  dplyr::filter(speaker == "Gabriel Barcia-Colombo") %>% 
+#counts the frequency of each word and arrange the result in descending order
+  dplyr::count(speaker, word, sort = TRUE)
+Gabriel_Barcia_topwords %>%
+#Highest frequency count 
+  dplyr::slice_max(n, n = 20) %>% #horizontal bar chart which displayys the words
+  dplyr::mutate(word = reorder(word, n)) %>%
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col()
+
+```
+
+This line of code selects the top 25 rows of the Gabriel_Barcia_topwords table based on the n column (which contains the word frequency counts), and stores the result in a new table. It offers a concise breakdown of Gabriel Barcia-most Colombo's frequently used terms in their TED Talks and might be helpful for figuring out the main themes or subjects in their speeches.
+
+#### Identification of top words for Neil Gershenfeld
+
+
+```{r topw, echo=FALSE}
+Neil_Gershenfeld_topwords <- ted_talks_nonstop %>%
+#including the rows which is related to the speaker
+  dplyr::filter(speaker == "Neil Gershenfeld") %>% 
+#counts the frequency of each word and arrange the result in descending order
+  dplyr::count(speaker, word, sort = TRUE)
+Neil_Gershenfeld_topwords %>%
+#Highest frequency count 
+  dplyr::slice_max(n, n = 20) %>%
+  dplyr::mutate(word = reorder(word, n)) %>% #horizontal bar chart which displayys the words
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col()
+```
+
+All of the words use by Neil Gershenfeld are viewed in the above graphs. We can easily see the text differences between both of the speakers and what kind of words they are using most and also their countings.Overall, using this code makes it simple to see the phrases Neil Gershenfeld uses the most in his TED Presentations. The resulting bar chart is a good place to start for additional text analysis and can be used to determine the key themes or topics in their talks.
+
+#### Comparison of speaker words with the help of graph
+
+In order to see which speaker uses most of the words we do the comparison between them using the plot of geom_repel. Before That, there is count frequency of words.
+
+
+```{r pressure, echo=FALSE}
+#Visualisation of vocabularary comparison by persons
+
+library(ggrepel)
+ted_talks_nonstop %>%
+  count(word, speaker, sort = TRUE) %>%
+#group the data by word and then filter out the words with total frequency count
+  group_by(word) %>%
+  filter(sum(n) > 10) %>%
+  ungroup() %>%
+#frequency count for each speaker in separate column
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0) %>%
+  ggplot(aes(`Neil Gershenfeld`, `Gabriel Barcia-Colombo`)) +
+  geom_abline(color = "red", size = 0.5, alpha = 0.8, lty = 2) +
+  # use the special ggrepel geom for nicer text plotting
+  geom_text_repel(aes(label = word), max.overlaps = 25)
+```
+
+The graph shows the comparison of the frequency of words used by ted speakers, Neil Gershenfeld and Gabriel Barcia-Colombo.It shows a scatterplot with the frequency of each word on the x and y axes, with each point representing a word. We can observe from the graph that the most common words in Gershenfeld's talk are "fabrication", "lab", "technology", and "make", which is not surprising given the topic of the talk.
+Interestingly, the most common words in Gabriel Barcia-Colombo's talk are "piece", "video" and "laughter", which are all closely related to the theme of the talk. Finally, in this graph we can observe that not all the words are found in all two sets of texts.
+
+#### Odds ratio and Sentimental Analysis of the TED speakers
+
+In the following code, we have analyze the odds ratio and the sentimental analysis of the speakers talk. It performs sentiment analysis on a dataset of TED talks (ted_talks_nonstop) using the NRC lexicon. It then joins the sentiment data with the speaker names and counts the number of words associated with each sentiment for each speaker.The phrases "fabrication," "lab," and "make," were the most recognisable words in the discussion, according to the log odds ratio analysis.In the table, odds ratio and log or for each sentiment between two specific speakers has been calculated using the compute_OR() function.This plot visualize the association between sentiment categories and our two speakers.
+
+```{r sentimental analysis, echo=FALSE}
+#assigning of ted_talks_nonstop into the new variable tidy_talks1
+tidy_talks1 <- ted_talks_nonstop
+tidy_talks1 %>%
+#adding a column of sentiments  based on the words used in ted talks
+  inner_join(get_sentiments("nrc"), by = "word",relationship = "many-to-many") %>%
+  count(speaker, sentiment) %>%
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0) %>%
+  mutate(OR = dsEssex::compute_OR(`Neil Gershenfeld`, `Gabriel Barcia-Colombo`, correction = FALSE), log_OR = log(OR), sentiment = reorder(sentiment, log_OR))
+
+library(ggplot2)
+tidy_talks1 %>%
+  inner_join(get_sentiments("nrc"), by = "word",relationship = "many-to-many") %>%
+  count(speaker, sentiment) %>%
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0) %>%
+  mutate(OR = dsEssex::compute_OR(`Neil Gershenfeld`,`Gabriel Barcia-Colombo`), log_OR = log(OR), sentiment = reorder(sentiment, log_OR)) %>%
+  ggplot(aes(sentiment, log_OR, fill = log_OR < 0)) +
+  geom_col(show.legend = FALSE) +
+  ylab("Log odds ratio") + ggtitle("The association between sentiments and speaker") +
+  coord_flip() + 
+  scale_fill_manual(name = "", values = c("blue", "orange"))
+
+```
+
+
+This graph shows the association between sentiments to each of the speaker and words which are strongly related to the speakers and how it can related to their talks. The graph's bars show the log odds ratio for each sentiment, with red bars showing words more likely to be used by Gabriel Barcia-Colombo and green bars showing phrases more likely to be used by Neil Gershenfeld. Each bar's height conveys the degree to which the speaker's sentiment is associated with him or her; higher bars signify a stronger relationship. Values greater than zero are more likely used by Neil Gershenfeld. On the other hand, values less than zero are used by Gabriel Barcia-Colombo.
+
+#### More Popular talks from both of the speakers
+
+```{r views, echo=FALSE}
+#sort the data by views column in descending order
+ted_data_sorted <- tidy_talks1 %>% 
+  arrange(desc(views))
+#selecting the top talks with highest number of views
+most_popular_talks <- head(ted_data_sorted, n = 5)
+most_popular_talks
+
+
+```
+
+The above table shows that the number of views for the ted talks are more for the Gabriel Barcia-Colombo	speaker rather than the other one. This means that this speaker is the most engaging to the audience.
+
+#### Conlcusion
+
+In conclusion, we performed a text analysis of two TED Talks: **Neil Gershenfeld's** "The Emergence of Fab Labs" and **Gabriel Barcia-Colombo's** "Capturing Memories in Video Art". We discovered that Neil Gershenfeld's TED Talk was primarily concerned with the democratisation of technology and how anyone can utilise digital fabrication tools to produce almost anything. The bulk of the sentences in the conversation were encouraging, and the overall tone was upbeat. The phrases “fabrication,” “lab,” and “make,” were the most recognisable words in the discussion, according to the log odds ratio analysis. In his TED Talk, Gabriel Barcia-Colombo discussed innovative techniques to collect and present photos utilising technology. The bulk of the sentences in the conversation were pleasant, contributing to the overall positive atmosphere.
+
+
+
+
+
+
+
+
+
